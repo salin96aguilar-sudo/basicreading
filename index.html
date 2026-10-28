@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Reading & Self-Check Application</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom scrollbars for clean independent pane scrolling */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col md:h-screen md:overflow-hidden">
+
+  <!-- Header & Navigation Bar -->
+  <header class="bg-indigo-700 text-white shadow-md flex-none z-10 sticky top-0 md:relative">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+      
+      <!-- Brand & Mobile Header -->
+      <div class="flex items-center justify-between w-full sm:w-auto">
+        <div class="flex items-center space-x-3">
+          <i class="fa-solid fa-book-open text-xl sm:text-2xl text-indigo-200"></i>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">Reading Lab</h1>
+        </div>
+
+        <!-- Global Score Badge (Mobile View Header inline) -->
+        <div class="bg-indigo-800 px-3 py-1 rounded-full border border-indigo-500/40 text-xs sm:text-sm font-medium flex items-center space-x-1.5 sm:hidden">
+          <span class="text-indigo-200">Score:</span>
+          <span id="score-display-mobile" class="font-bold text-yellow-300">0 / 0</span>
+        </div>
+      </div>
+
+      <!-- Module Selector Tabs -->
+      <div class="flex w-full sm:w-auto bg-indigo-900/50 p-1 rounded-xl border border-indigo-500/30 overflow-x-auto">
+        <button id="tab-reading1" onclick="switchReading(1)" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-indigo-900 shadow whitespace-nowrap">
+          <i class="fa-solid fa-user-group mr-1.5"></i>1. My Family
+        </button>
+        <button id="tab-reading2" onclick="switchReading(2)" class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-indigo-200 hover:text-white transition-all duration-200 whitespace-nowrap">
+          <i class="fa-solid fa-laptop-code mr-1.5"></i>2. Technology
+        </button>
+      </div>
+
+      <!-- Global Score Badge (Desktop View) -->
+      <div class="hidden sm:flex bg-indigo-800 px-4 py-1.5 rounded-full border border-indigo-500/40 text-sm font-medium items-center space-x-2">
+        <span class="text-indigo-200">Total Score:</span>
+        <span id="score-display" class="font-bold text-yellow-300 text-base">0 / 0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Tab View Switcher (Passage vs Exercises Toggle on small screens) -->
+  <div class="flex md:hidden bg-slate-200 p-1 mx-4 mt-3 rounded-lg border border-slate-300 flex-none">
+    <button id="view-passage-btn" onclick="toggleMobileView('passage')" class="flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow">
+      <i class="fa-solid fa-file-lines mr-1.5"></i>Passage
+    </button>
+    <button id="view-exercise-btn" onclick="toggleMobileView('exercise')" class="flex-1 py-1.5 text-xs font-bold rounded-md text-slate-600">
+      <i class="fa-solid fa-pen-to-square mr-1.5"></i>Exercises
+    </button>
+  </div>
+
+  <!-- Main Content: Split Screen Layout -->
+  <main class="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden p-3 sm:p-4 gap-4 max-w-7xl mx-auto w-full">
+    
+    <!-- LEFT PANEL: Reading Passage -->
+    <section id="passage-panel" class="w-full md:w-1/2 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+      <!-- Panel Header -->
+      <div class="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-none">
+        <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">Reading Passage</span>
+        <span class="text-xs text-slate-500 hidden sm:inline"><i class="fa-solid fa-arrows-up-down mr-1"></i>Scroll to read</span>
+      </div>
+      
+      <!-- Passage Content (Independent Scroll on Desktop) -->
+      <div id="passage-container" class="flex-1 md:overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar text-slate-700 leading-relaxed text-sm sm:text-base">
+        <!-- Content inserted dynamically -->
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Exercises & Self-Checking -->
+    <section id="exercise-panel" class="hidden md:flex w-full md:w-1/2 bg-white rounded-2xl shadow-sm border border-slate-200 flex-col overflow-hidden">
+      <!-- Panel Header -->
+      <div class="bg-slate-50 border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between flex-none">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">Interactive Exercises</span>
+        <button onclick="resetCurrentReading()" class="text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors">
+          <i class="fa-solid fa-rotate-right"></i> Reset Form
+        </button>
+      </div>
+
+      <!-- Exercises Content (Independent Scroll on Desktop) -->
+      <div id="exercises-container" class="flex-1 md:overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar">
+        <!-- Content inserted dynamically -->
+      </div>
+
+      <!-- Action Footer -->
+      <div class="bg-slate-50 border-t border-slate-200 p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-center gap-3 flex-none">
+        <div class="text-xs text-slate-500 text-center sm:text-left">
+          Complete all sections and check your answers.
+        </div>
+        <button onclick="checkAnswers()" class="w-full sm:w-auto px-5 sm:px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2">
+          <i class="fa-solid fa-circle-check"></i> Check Objective Answers
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Data Structure for Both Readings
+    const readingsData = {
+      1: {
+        title: "MY FAMILY AND ME",
+        passage: `
+          <h2 class="text-2xl font-bold text-slate-900 mb-4">My Family and Me</h2>
+          <p class="mb-4">My name is <strong>Yuki Tanaka</strong>, and I am 22 years old. I am Japanese, and I am from Tokyo, Japan. My birthday is on May 15th. I am a friendly and quiet person. My favorite color is blue, and my favorite food is sushi. I like reading books, listening to music, and walking in the park. However, I don't like rainy days or waking up late. I am a university student, and I live with my family in a small house in Tokyo.</p>
+          <p class="mb-4">My father's name is <strong>Hiroshi</strong>. He is 50 years old, and he is an engineer. His birthday is on February 10th. He is hardworking and patient. His day starts at 6:00 a.m. He has breakfast with us and goes to work at 7:00 a.m. He finishes work at 5:00 p.m. and arrives home at 6:00 p.m.</p>
+          <p class="mb-4">My mother's name is <strong>Keiko</strong>. She is 47 years old, and she is a nurse at a local hospital. Her birthday is on August 20th. She is kind and helpful. Her day starts at 5:30 a.m. She prepares breakfast before going to work at 7:00 a.m. She finishes her shift at 4:00 p.m. and gets home at 5:00 p.m.</p>
+          <p class="mb-4">My younger brother's name is <strong>Ren</strong>. He is 15 years old, and he is a high school student. His birthday is on November 3rd. He likes video games and soccer, but he doesn't like cleaning his room! His day starts at 6:30 a.m. He goes to school at 7:30 a.m. and returns home at 4:00 p.m. In the evening, we have dinner together at 7:00 p.m. After dinner, I read books, my brother plays video games, and our parents relax. We are a happy family, and I love them very much.</p>
+        `,
+        tfQuestions: [
+          { id: "r1_tf1", text: "1. Yuki is 22 years old.", answer: "T" },
+          { id: "r1_tf2", text: "2. Yuki's birthday is on May 25th.", answer: "F" },
+          { id: "r1_tf3", text: "3. Hiroshi is an engineer.", answer: "T" },
+          { id: "r1_tf4", text: "4. Keiko works at a school.", answer: "F" },
+          { id: "r1_tf5", text: "5. Ren is Yuki's older brother.", answer: "F" }
+        ],
+        vocabQuestions: [
+          {
+            id: "r1_v1",
+            text: "1. Yuki is from Japan. She is ______.",
+            options: [ { label: "a) Japanese", val: "a" }, { label: "b) nurse", val: "b" }, { label: "c) fifteen", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r1_v2",
+            text: "2. Hiroshi designs and works with machines and technology. He is an ______.",
+            options: [ { label: "a) engineer", val: "a" }, { label: "b) student", val: "b" }, { label: "c) hospital", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r1_v3",
+            text: "3. Keiko helps sick people at a hospital. She is a ______.",
+            options: [ { label: "a) teacher", val: "a" }, { label: "b) nurse", val: "b" }, { label: "c) brother", val: "c" } ],
+            answer: "b"
+          },
+          {
+            id: "r1_v4",
+            text: "4. Ren is Yuki's ______ brother because he is younger.",
+            options: [ { label: "a) old", val: "a" }, { label: "b) young", val: "b" }, { label: "c) younger", val: "c" } ],
+            answer: "c"
+          },
+          {
+            id: "r1_v5",
+            text: "5. Yuki doesn't like rainy days. She ______ rainy days.",
+            options: [ { label: "a) dislikes", val: "a" }, { label: "b) likes", val: "b" }, { label: "c) lives", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r1_v6",
+            text: "6. After work, Hiroshi ______ home at 6:00 p.m.",
+            options: [ { label: "a) starts", val: "a" }, { label: "b) arrives", val: "b" }, { label: "c) wakes", val: "c" } ],
+            answer: "b"
+          }
+        ],
+        openQuestions: [
+          {
+            id: "r1_o1",
+            text: "1. How old is Yuki, and when is her birthday?",
+            sample: "Yuki is 22 years old, and her birthday is on May 15th."
+          },
+          {
+            id: "r1_o2",
+            text: "2. What are her parents' jobs, and what time do they finish work?",
+            sample: "Her father is an engineer, and he finishes work at 5:00 p.m. Her mother is a nurse, and she finishes work at 4:00 p.m."
+          },
+          {
+            id: "r1_o3",
+            text: "3. What does Yuki's family do together in the evening?",
+            sample: "They have dinner together at 7:00 p.m. After dinner, they relax and do different activities."
+          }
+        ]
+      },
+      2: {
+        title: "TECHNOLOGY IN OUR DAILY LIVES",
+        passage: `
+          <h2 class="text-2xl font-bold text-slate-900 mb-4">Technology in Our Daily Lives</h2>
+          <p class="mb-4">Technology is an important part of our daily lives. People use smartphones, computers, tablets, and the internet at home, at school, and at work. These tools help us communicate quickly, find information, and complete tasks more easily. However, we need to use them carefully and take breaks from screens.</p>
+          <p class="mb-4">At school, students often use tablets or laptops to research topics, watch educational videos, and prepare presentations. Some students are working online with classmates right now, while their teacher is explaining a new activity. Students can learn independently with digital resources, but they can’t always trust everything they read online. They should check information carefully.</p>
+          <p class="mb-4">At home, many people use technology to talk to relatives, pay bills, shop online, or relax by watching films. Parents sometimes work remotely and attend meetings by video call. At the moment, my neighbor is using a fitness app while her son is doing his homework on a laptop. Technology saves time, but people should also spend time talking face to face.</p>
+          <p class="mb-4">Technology is also useful at work. Employees use email to send messages, spreadsheets to organize information, and video calls to communicate with coworkers in other places. Many workers use these tools efficiently, but they still need to protect their passwords and personal information.</p>
+          <p class="mb-4">Athletes use technology to improve their performance and stay healthy. Runners wear smartwatches that measure their heart rate, speed, distance, and steps. Coaches analyze videos to help players move correctly and improve their technique. Some athletes use apps to record their sleep, meals, and training sessions. Right now, a football team is watching a video of its last match, and the coach is explaining the players’ mistakes carefully. Athletes can use these tools to train more effectively, but technology can’t replace practice, discipline, or a healthy diet.</p>
+          <p class="mb-4">Technology makes many activities easier, faster, and more convenient. We use it every day, and it continues to change the way we study, work, communicate, and play sports. The best choice is to use technology wisely and actively, not to depend on it for everything.</p>
+        `,
+        tfQuestions: [
+          { id: "r2_tf1", text: "1. Technology helps people communicate and complete tasks.", answer: "T" },
+          { id: "r2_tf2", text: "2. Students can always trust every piece of information they find online.", answer: "F" },
+          { id: "r2_tf3", text: "3. Some people use technology to work remotely from home.", answer: "T" },
+          { id: "r2_tf4", text: "4. Smartwatches can measure an athlete's heart rate and distance.", answer: "T" },
+          { id: "r2_tf5", text: "5. Technology can completely replace practice and discipline for athletes.", answer: "F" }
+        ],
+        vocabQuestions: [
+          {
+            id: "r2_v1",
+            text: "1. Students use the internet to ______ information for school projects.",
+            options: [ { label: "a) research", val: "a" }, { label: "b) sleep", val: "b" }, { label: "c) compete", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r2_v2",
+            text: "2. A smartwatch can measure your heart ______ while you exercise.",
+            options: [ { label: "a) screen", val: "a" }, { label: "b) rate", val: "b" }, { label: "c) keyboard", val: "c" } ],
+            answer: "b"
+          },
+          {
+            id: "r2_v3",
+            text: "3. The coach watches videos to ______ the team's performance.",
+            options: [ { label: "a) analyze", val: "a" }, { label: "b) download", val: "b" }, { label: "c) message", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r2_v4",
+            text: "4. When you work ______, you do your job from home or another location.",
+            options: [ { label: "a) remotely", val: "a" }, { label: "b) loudly", val: "b" }, { label: "c) badly", val: "c" } ],
+            answer: "a"
+          },
+          {
+            id: "r2_v5",
+            text: "5. Athletes use a training app to ______ their progress.",
+            options: [ { label: "a) track", val: "a" }, { label: "b) forget", val: "b" }, { label: "c) break", val: "c" } ],
+            answer: "a"
+          }
+        ],
+        openQuestions: [
+          {
+            id: "r2_o1",
+            text: "1. How do students use technology at school, and what should they do before trusting online information?",
+            sample: "Students use laptops or tablets to research, watch videos, and prepare presentations. They should check information carefully before trusting it."
+          },
+          {
+            id: "r2_o2",
+            text: "2. Name two ways people use technology at home or at work.",
+            sample: "At home: talking to relatives, paying bills, shopping, or watching films. At work: sending emails, using spreadsheets, or making video calls."
+          },
+          {
+            id: "r2_o3",
+            text: "3. How does technology help athletes improve, and what can’t it replace?",
+            sample: "It helps track heart rate, speed, and technique using smartwatches and video analysis. However, it cannot replace practice, discipline, or a healthy diet."
+          }
+        ]
+      }
+    };
+
+    let currentReadingId = 1;
+    let userSelfScores = {};
+    let mobileActiveView = 'passage';
+
+    // Initialize Application
+    window.onload = function() {
+      switchReading(1);
+    };
+
+    // Toggle Mobile Panel View (Passage vs Exercise)
+    function toggleMobileView(view) {
+      mobileActiveView = view;
+      const passagePanel = document.getElementById("passage-panel");
+      const exercisePanel = document.getElementById("exercise-panel");
+      const passageBtn = document.getElementById("view-passage-btn");
+      const exerciseBtn = document.getElementById("view-exercise-btn");
+
+      if (view === 'passage') {
+        passagePanel.classList.remove("hidden");
+        exercisePanel.classList.add("hidden");
+        exercisePanel.classList.remove("flex");
+
+        passageBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow";
+        exerciseBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-slate-600";
+      } else {
+        passagePanel.classList.add("hidden");
+        exercisePanel.classList.remove("hidden");
+        exercisePanel.classList.add("flex");
+
+        exerciseBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow";
+        passageBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-md text-slate-600";
+      }
+    }
+
+    // Switch Reading Tabs
+    function switchReading(id) {
+      currentReadingId = id;
+
+      // Update UI Tab States
+      document.getElementById("tab-reading1").className = id === 1 
+        ? "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-indigo-900 shadow whitespace-nowrap"
+        : "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-indigo-200 hover:text-white transition-all duration-200 whitespace-nowrap";
+
+      document.getElementById("tab-reading2").className = id === 2 
+        ? "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-indigo-900 shadow whitespace-nowrap"
+        : "flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold text-indigo-200 hover:text-white transition-all duration-200 whitespace-nowrap";
+
+      // Render Content
+      renderPassage();
+      renderExercises();
+      updateScore();
+    }
+
+    // Render Reading Passage
+    function renderPassage() {
+      const container = document.getElementById("passage-container");
+      container.innerHTML = readingsData[currentReadingId].passage;
+    }
+
+    // Render Exercises for Selected Reading
+    function renderExercises() {
+      const data = readingsData[currentReadingId];
+      const container = document.getElementById("exercises-container");
+      
+      let html = "";
+
+      // --- Part 2: True / False ---
+      html += `
+        <div class="space-y-4">
+          <div class="border-b border-slate-200 pb-2">
+            <h3 class="font-bold text-base sm:text-lg text-slate-800">Part 2. True or False</h3>
+            <p class="text-xs text-slate-500">Read the statement and select True (T) or False (F).</p>
+          </div>
+          <div class="space-y-3">
+      `;
+
+      data.tfQuestions.forEach((q) => {
+        html += `
+          <div id="card_${q.id}" class="p-3 sm:p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+            <span class="text-xs sm:text-sm font-medium text-slate-700">${q.text}</span>
+            <div class="flex items-center space-x-2 flex-none self-end sm:self-auto">
+              <label class="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-600 transition-colors">
+                <input type="radio" name="${q.id}" value="T" class="mr-1.5 text-indigo-600 focus:ring-indigo-500"> True
+              </label>
+              <label class="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-600 transition-colors">
+                <input type="radio" name="${q.id}" value="F" class="mr-1.5 text-indigo-600 focus:ring-indigo-500"> False
+              </label>
+              <span id="feedback_${q.id}" class="text-xs font-bold px-2 py-1 rounded hidden"></span>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+
+      // --- Part 3: Vocabulary ---
+      html += `
+        <div class="space-y-4 pt-2 sm:pt-4">
+          <div class="border-b border-slate-200 pb-2">
+            <h3 class="font-bold text-base sm:text-lg text-slate-800">Part 3. Vocabulary</h3>
+            <p class="text-xs text-slate-500">Choose the correct word to complete each sentence.</p>
+          </div>
+          <div class="space-y-4">
+      `;
+
+      data.vocabQuestions.forEach((q) => {
+        html += `
+          <div id="card_${q.id}" class="p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 transition-colors">
+            <p class="text-xs sm:text-sm font-medium text-slate-800">${q.text}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        `;
+        q.options.forEach((opt) => {
+          html += `
+            <label class="cursor-pointer flex items-center p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50/50 text-xs text-slate-700 font-medium transition-colors">
+              <input type="radio" name="${q.id}" value="${opt.val}" class="mr-2 text-indigo-600 focus:ring-indigo-500"> ${opt.label}
+            </label>
+          `;
+        });
+        html += `
+            </div>
+            <div id="feedback_${q.id}" class="text-xs font-bold pt-1 hidden"></div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+
+      // --- Part 4: Reading Comprehension ---
+      html += `
+        <div class="space-y-4 pt-2 sm:pt-4">
+          <div class="border-b border-slate-200 pb-2">
+            <h3 class="font-bold text-base sm:text-lg text-slate-800">Part 4. Reading Comprehension</h3>
+            <p class="text-xs text-slate-500">Answer using complete sentences. Compare with the sample response when finished.</p>
+          </div>
+          <div class="space-y-5 sm:space-y-6">
+      `;
+
+      data.openQuestions.forEach((q) => {
+        html += `
+          <div class="p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+            <label class="block text-xs sm:text-sm font-medium text-slate-800">${q.text}</label>
+            
+            <textarea id="input_${q.id}" rows="3" class="w-full p-3 text-xs sm:text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white" placeholder="Type your answer here..."></textarea>
+            
+            <div>
+              <button type="button" onclick="toggleSampleAnswer('${q.id}')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5">
+                <i class="fa-solid fa-eye"></i> Compare Response
+              </button>
+            </div>
+
+            <div id="sample_box_${q.id}" class="hidden space-y-3 pt-2 border-t border-slate-200">
+              <div class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs text-emerald-900 leading-relaxed">
+                <span class="font-bold block text-emerald-800 mb-1"><i class="fa-solid fa-lightbulb mr-1"></i>Sample Answer:</span>
+                ${q.sample}
+              </div>
+
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-2.5 sm:p-3 rounded-lg border border-slate-200">
+                <span class="text-xs font-semibold text-slate-600">Rate your answer:</span>
+                <div class="grid grid-cols-3 sm:flex items-center gap-1.5 sm:space-x-2">
+                  <button type="button" onclick="setSelfScore('${q.id}', 1)" class="px-2 py-1.5 sm:py-1 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 text-slate-600 text-xs font-semibold transition-colors border border-slate-200 text-center" id="btn_score_${q.id}_1">Correct (1pt)</button>
+                  <button type="button" onclick="setSelfScore('${q.id}', 0.5)" class="px-2 py-1.5 sm:py-1 rounded bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-600 text-xs font-semibold transition-colors border border-slate-200 text-center" id="btn_score_${q.id}_0.5">Partial (0.5pt)</button>
+                  <button type="button" onclick="setSelfScore('${q.id}', 0)" class="px-2 py-1.5 sm:py-1 rounded bg-slate-100 hover:bg-rose-100 hover:text-rose-800 text-slate-600 text-xs font-semibold transition-colors border border-slate-200 text-center" id="btn_score_${q.id}_0">Incorrect (0pt)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+
+      container.innerHTML = html;
+    }
+
+    // Toggle Visibility of Open-Ended Sample Answer
+    function toggleSampleAnswer(id) {
+      const sampleBox = document.getElementById(`sample_box_${id}`);
+      sampleBox.classList.toggle("hidden");
+    }
+
+    // Handle Self Score for Open Ended Questions
+    function setSelfScore(qId, score) {
+      userSelfScores[qId] = score;
+
+      // Update button visual styles
+      const btn1 = document.getElementById(`btn_score_${qId}_1`);
+      const btn05 = document.getElementById(`btn_score_${qId}_0.5`);
+      const btn0 = document.getElementById(`btn_score_${qId}_0`);
+
+      // Reset styles
+      [btn1, btn05, btn0].forEach(btn => {
+        btn.className = "px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs font-semibold transition-colors border border-slate-200";
+      });
+
+      // Highlight selected
+      if (score === 1) {
+        btn1.className = "px-2.5 py-1 rounded bg-emerald-600 text-white text-xs font-semibold transition-colors border border-emerald-600";
+      } else if (score === 0.5) {
+        btn05.className = "px-2.5 py-1 rounded bg-amber-500 text-white text-xs font-semibold transition-colors border border-amber-500";
+      } else {
+        btn0.className = "px-2.5 py-1 rounded bg-rose-600 text-white text-xs font-semibold transition-colors border border-rose-600";
+      }
+
+      updateScore();
+    }
+
+    // Check Objective Answers (Part 2 & Part 3)
+    function checkAnswers() {
+      const data = readingsData[currentReadingId];
+      let objectiveScore = 0;
+
+      // Check True/False Questions
+      data.tfQuestions.forEach(q => {
+        const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+        const feedback = document.getElementById(`feedback_${q.id}`);
+        const card = document.getElementById(`card_${q.id}`);
+
+        feedback.classList.remove("hidden", "bg-emerald-100", "text-emerald-800", "bg-rose-100", "text-rose-800");
+
+        if (selected) {
+          if (selected.value === q.answer) {
+            objectiveScore += 1;
+            feedback.innerText = "✓ Correct";
+            feedback.classList.add("bg-emerald-100", "text-emerald-800");
+            card.classList.add("border-emerald-300", "bg-emerald-50/20");
+            card.classList.remove("border-rose-300", "bg-rose-50/20");
+          } else {
+            feedback.innerText = `✗ Correct: ${q.answer}`;
+            feedback.classList.add("bg-rose-100", "text-rose-800");
+            card.classList.add("border-rose-300", "bg-rose-50/20");
+            card.classList.remove("border-emerald-300", "bg-emerald-50/20");
+          }
+        } else {
+          feedback.innerText = "Unanswered";
+          feedback.classList.add("bg-amber-100", "text-amber-800");
+        }
+      });
+
+      // Check Vocabulary Questions
+      data.vocabQuestions.forEach(q => {
+        const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+        const feedback = document.getElementById(`feedback_${q.id}`);
+        const card = document.getElementById(`card_${q.id}`);
+
+        feedback.classList.remove("hidden", "text-emerald-700", "text-rose-700");
+
+        if (selected) {
+          if (selected.value === q.answer) {
+            objectiveScore += 1;
+            feedback.innerText = "✓ Correct!";
+            feedback.classList.add("text-emerald-700");
+            card.classList.add("border-emerald-300", "bg-emerald-50/20");
+            card.classList.remove("border-rose-300", "bg-rose-50/20");
+          } else {
+            feedback.innerText = `✗ Incorrect. Option (${q.answer.toUpperCase()}) is correct.`;
+            feedback.classList.add("text-rose-700");
+            card.classList.add("border-rose-300", "bg-rose-50/20");
+            card.classList.remove("border-emerald-300", "bg-emerald-50/20");
+          }
+        } else {
+          feedback.innerText = "Please select an answer.";
+          feedback.classList.add("text-amber-700");
+        }
+      });
+
+      updateScore();
+    }
+
+    // Calculate Total Score across Objective + Self-Rated Open Questions
+    function updateScore() {
+      const data = readingsData[currentReadingId];
+      let totalPointsPossible = data.tfQuestions.length + data.vocabQuestions.length + data.openQuestions.length;
+      let currentScore = 0;
+
+      // Add objective points
+      data.tfQuestions.forEach(q => {
+        const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+        if (selected && selected.value === q.answer) {
+          currentScore += 1;
+        }
+      });
+
+      data.vocabQuestions.forEach(q => {
+        const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+        if (selected && selected.value === q.answer) {
+          currentScore += 1;
+        }
+      });
+
+      // Add self-assessed open question points
+      data.openQuestions.forEach(q => {
+        if (userSelfScores[q.id] !== undefined) {
+          currentScore += userSelfScores[q.id];
+        }
+      });
+
+      const scoreStr = `${currentScore} / ${totalPointsPossible}`;
+      document.getElementById("score-display").innerText = scoreStr;
+      
+      const mobileScoreDisplay = document.getElementById("score-display-mobile");
+      if (mobileScoreDisplay) {
+        mobileScoreDisplay.innerText = scoreStr;
+      }
+    }
+
+    // Reset Form for Active Reading
+    function resetCurrentReading() {
+      const data = readingsData[currentReadingId];
+      data.openQuestions.forEach(q => delete userSelfScores[q.id]);
+      renderExercises();
+      updateScore();
+    }
+  </script>
+</body>
+</html>
